@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercice de respiration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .circle {
+            width: 200px;
+            height: 200px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            display: inline-block;
+            margin-top: 30px;
+            transition: transform 0.5s, background-color 0.5s;
+        }
+
+        .instructions {
+            margin-top: 30px;
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .title {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        .home-button {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+
+        .home-button:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="title">{{ detail_exercice_respiration.nomComplet }}</div>
+    <div class="circle" id="breathingCircle"></div>
+    <div class="instructions" id="instructions">Cliquez sur le cercle pour commencer</div>
+    <a href="{{ path('app_acceuil') }}" class="home-button">Revenir à l'accueil</a>
+</div>
+
+<script>
+    const breathingCircle = document.getElementById('breathingCircle');
+    const instructions = document.getElementById('instructions');
+
+    // Paramètres de respiration (en secondes)
+    const inspirationTime = {{ detail_exercice_respiration.dureeInspiration }};
+    const holdTime = {{ detail_exercice_respiration.dureeApnee }};
+    const expirationTime = {{ detail_exercice_respiration.dureeExpiration }};
+
+    let isBreathing = false;
+
+    breathingCircle.addEventListener('click', () => {
+        if (!isBreathing) {
+            isBreathing = true;
+            breathe();
+        }
+    });
+
+    function breathe() {
+        instructions.textContent = 'Inspirez';
+        breathingCircle.style.backgroundColor = '#4CAF50';
+        breathingCircle.style.transform = 'scale(1.2)';
+
+        setTimeout(() => {
+            instructions.textContent = 'Retenez votre souffle';
+            breathingCircle.style.backgroundColor = '#FFD700';
+
+            setTimeout(() => {
+                instructions.textContent = 'Expirez';
+                breathingCircle.style.backgroundColor = '#FF4500';
+                breathingCircle.style.transform = 'scale(1)';
+
+                setTimeout(() => {
+                    breathe();
+                }, expirationTime * 1000);
+            }, holdTime * 1000);
+        }, inspirationTime * 1000);
+    }
+</script>
+</body>
+</html>

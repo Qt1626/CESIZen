@@ -1,0 +1,88 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <!--
+    <header>
+
+        <div class="collapse bg-dark" id="navbarHeader">
+            <div class="container">
+                <div class="row">
+                    <div class="col-sm-8 col-md-7 py-4">
+                        <h4 class="text-white">À propos</h4>
+                        <p class="text-muted">Ajoutez quelques informations sur l'album ci-dessous, l'auteur ou tout autre contexte de fond. Faites-en quelques phrases pour que les gens puissent récupérer des bribes d'informations intéressantes. Ensuite, redirigez-les vers des réseaux sociaux ou des informations de contact.</p>
+                    </div>
+                    <div class="col-sm-4 offset-md-1 py-4">
+                        <h4 class="text-white">Contact</h4>
+                        <ul class="list-unstyled">
+                            <li><a href="#" class="text-white">Suivez-nous sur Twitter</a></li>
+                            <li><a href="#" class="text-white">Aimez-nous sur Facebook</a></li>
+                            <li><a href="#" class="text-white">Envoyez-nous un email</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar navbar-dark bg-dark shadow-sm">
+            <div class="container">
+                <a href="#" class="navbar-brand d-flex align-items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true" class="me-2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <strong>Album</strong>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarHeader" aria-controls="navbarHeader" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+   -->
+    <main>
+        <section class="py-5 text-center container">
+            <div class="row py-lg-5">
+                <div class="col-lg-6 col-md-8 mx-auto">
+                    <h1 class="fw-light">---</h1>
+                    <img class="img-fluid" src="{{ asset('images/cesizen_logo_grand_2.png')}}" alt="" width="300px" height="300px">
+                    <h1 class="fw-light">---</h1>
+                    <p class="lead text-muted">La plateforme officielle de gestion du stress.</p>
+                    <p>Vous trouverez ici des informations pratiques, des exercices de respiration et d'autres fonctionnalités qui arriveront bientôt...</p>
+         <!--
+                    <p>
+                        <a href="#" class="btn btn-primary my-2">Appel principal à l'action</a>
+                        <a href="#" class="btn btn-secondary my-2">Action secondaire</a>
+                    </p>
+                    -->
+                </div>
+            </div>
+        </section>
+
+        <div class="album py-5 bg-light">
+            <div class="container">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+                    {% for information_page in information_page_array %}
+                        <div class="col">
+                            <div class="card shadow-sm">
+                                <!--
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="225" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Vignette" preserveAspectRatio="xMidYMid slice" focusable="false"><title>Placeholder</title><rect width="100%" height="100%" fill="#55595c"/><text x="50%" y="50%" fill="#eceeef" dy=".3em">Vignette</text></svg>
+                                -->
+                                <img class="bd-placeholder-img card-img-top" src="{{ information_page.image}}" alt="" width="450px" height="225px" >
+
+                                <div class="card-body">
+                                    <p class="card-text">{{ information_page.titrePage | slice (0,45) }} (...) </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="btn-group">
+                                            <a href="{{ path('app_detail_page', {'id': information_page.id }) }}">Voir</a>
+                                            <!--
+                                            <button type="button" class="btn btn-sm btn-outline-secondary">Modifier</button>
+                                            -->
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}

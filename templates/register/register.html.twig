@@ -1,0 +1,158 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block meta %}
+  <meta name="theme-color" content="#712cf9">
+{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+{% endblock %}
+
+{% block body %}
+  <section class="p-3 p-md-4 p-xl-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-12 col-md-6 bsb-tpl-bg-platinum">
+          <div class="d-flex flex-column justify-content-between h-50 p-3 p-md-4 p-xl-5">
+            <h3 class="m-0">Bienvenue!</h3>
+            <img class="img-fluid" src="{{ asset('images/cesizen_logo_grand.png')}}" alt="" width="300px" height="300px">
+          </div>
+        </div>
+        <div class="col-12 col-md-6 bsb-tpl-bg-lotion">
+          <div class="p-3 p-md-4 p-xl-5">
+            <div class="row">
+              <div class="col-12">
+                <div class="mb-5">
+                  <h2 class="h3">Inscription</h2>
+                  <h3 class="fs-6 fw-normal text-secondary m-0">Entrez vos informations pour vous inscrire</h3>
+                </div>
+              </div>
+            </div>
+           <!-- <form id="registrationForm" method="POST">
+                <div class="row gy-3 gy-md-4 overflow-hidden">
+                <div class="col-12">
+                  <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" name="prenom" id="prenom" placeholder="Prénom" required>
+                </div>
+                <div class="col-12">
+                  <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" name="nom" id="nom" placeholder="Nom" required>
+                </div>
+                <div class="col-12">
+                  <label for="email" class="form-label">E-mail <span class="text-danger">*</span></label>
+                  <input type="email" class="form-control" name="email" id="email" placeholder="nom@exemple.com" required>
+                </div>
+                <div class="col-12">
+                  <label for="motdepasse" class="form-label">Mot de passe <span class="text-danger">*</span></label>
+                  <input type="password" class="form-control" name="motdepasse" id="motdepasse" required>
+                </div>
+                <div class="col-12">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="" name="jAccepte" id="jAccepte" required>
+                    <label class="form-check-label text-secondary" for="jAccepte">
+                      J'accepte les <a href="#!" class="link-primary text-decoration-none">conditions générales</a>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="d-grid">
+                    <button class="btn bsb-btn-xl btn-primary" type="submit">S'inscrire</button>
+                  </div>
+                </div>
+              </div>
+            </form>
+            -->
+            {# this form theme will be applied only to the form of this template #}{% form_theme form 'bootstrap_5_horizontal_layout.html.twig' %}
+            {{ form(form) }}
+<!--
+            <form action="{{ path('registerSubmit') }}" method="post" name="formulario_login">
+              <label for="username">User:</label>
+              <input type="text" id="username" name="_username" value="" />
+              <br />
+              <label for="password">Password:</label>
+              <input type="password" id="password" name="_password" />
+              <br />
+              <input type="checkbox" id="remember_me" name="_remember_me"/>
+              <label for="remember_me">Remember me</label>
+              <br />
+              <input type="submit" name="login" value="Login" />
+            </form>
+-->
+            <div class="row">
+              <div class="col-12">
+                <hr class="mt-5 mb-4 border-secondary-subtle">
+                <p class="m-0 text-secondary text-end">Vous avez déjà un compte ? <a href="{{ path('app_login')}}" class="link-primary text-decoration-none">Connectez-vous</a></p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12">
+
+                <div class="d-flex gap-3 flex-column flex-xl-row">
+                  <!-- Boutons de connexion sociale -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fenêtre Modale -->
+  <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="successModalLabel">Inscription réussie</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Votre inscription a été réussie ! Vous pouvez maintenant vous connecter.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('registrationForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+
+      fetch('http://127.0.0.1:8000/api/info_utilisateur', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+              .then(response => {
+                if (response.ok) {
+                  return response.json();
+                } else {
+                  return response.text().then(text => {
+                    throw new Error(`Erreur lors de l'inscription : ${text}`);
+                  });
+                }
+              })
+              .then(data => {
+
+                const { nom, prenom, dateNaissance, email } = data;
+
+                alert(`Inscription réussie pour ${prenom} ${nom} (${email})`);
+              })
+              .catch(error => {
+
+                alert(error.message);
+              });
+
+
+
+    });
+  </script>
+{% endblock %}

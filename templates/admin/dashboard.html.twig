@@ -1,0 +1,19 @@
+{# templates/admin/dashboard.html.twig #}
+
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content_title %}Dashboard Overview{% endblock %}
+
+{% block main %}
+    <div class="row">
+
+
+        {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+            <p>PAGE SPECIFIQUE ADMIN</p>
+            <p>Connecté : {{ app.user.email }}</p>
+            <p>first : {{ app.user.getFirstRole }}</p>
+        {% endif %}
+
+    </div>
+{% endblock %}

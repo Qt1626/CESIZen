@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Resource index{% endblock %}
+
+{% block body %}
+    <h1>Resource index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>NameResource</th>
+                <th>DescriptionResource</th>
+                <th>TypeResouce</th>
+                <th>CreatedAt</th>
+                <th>UpdateAt</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for resource in resources %}
+            <tr>
+                <td>{{ resource.id }}</td>
+                <td>{{ resource.nameResource }}</td>
+                <td>{{ resource.descriptionResource }}</td>
+                <td>{{ resource.typeResouce }}</td>
+                <td>{{ resource.createdAt ? resource.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ resource.updateAt ? resource.updateAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>
+                    <a href="{{ path('app_ressource_crud_show', {'id': resource.id}) }}">show</a>
+                    <a href="{{ path('app_ressource_crud_edit', {'id': resource.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_ressource_crud_new') }}">Create new</a>
+{% endblock %}
