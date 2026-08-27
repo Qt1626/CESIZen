@@ -2,9 +2,11 @@ name: CI CESIZen
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
 
 jobs:
   tests:
@@ -63,5 +65,5 @@ jobs:
       - name: Lancer PHPUnit
         run: vendor/bin/phpunit
 
-           - name: Build image Docker
+      - name: Build image Docker
         run: docker build -t cesizen-app .
