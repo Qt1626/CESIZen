@@ -34,6 +34,9 @@ jobs:
       - name: Recuperer le projet
         uses: actions/checkout@v4
 
+      - name: Preparer environnement de test
+        run: cp .env.test .env
+
       - name: Installer PHP
         uses: shivammathur/setup-php@v2
         with:
