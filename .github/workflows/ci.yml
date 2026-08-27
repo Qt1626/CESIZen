@@ -1,0 +1,60 @@
+name: CI CESIZen
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: app_test
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: "!ChangeMe!"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_SECRET: test_secret
+      DATABASE_URL: "postgresql://app:!ChangeMe!@127.0.0.1:5432/app?serverVersion=16&charset=utf8"
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo_pgsql
+          coverage: none
+
+      - name: Installer Composer
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Creer le schema de test
+        run: php bin/console doctrine:schema:create --env=test
+
+      - name: Verifier Doctrine
+        run: php bin/console doctrine:schema:validate --env=test
+
+      - name: Verifier YAML
+        run: php bin/console lint:yaml config
+
+      - name: Verifier Twig
+        run: php bin/console lint:twig templates
+
+      - name: Lancer PHPUnit
+        run: vendor/bin/phpunit
