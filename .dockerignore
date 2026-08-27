@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+node_modules
+var
+vendor
+.env.local
+.env.*.local
+.phpunit.cache
+tests
