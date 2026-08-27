@@ -29,7 +29,7 @@ class AdminLog
     private ?\DateTimeImmutable $dateAdminLog = null;
 
 
-    #[ORM\ManyToOne(inversedBy: 'idLog')]
+    #[ORM\ManyToOne(inversedBy: 'idAdminLog')]
     private ?Utilisateur $idUtilisateur = null;
 
 
