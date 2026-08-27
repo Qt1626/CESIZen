@@ -63,5 +63,5 @@ jobs:
       - name: Lancer PHPUnit
         run: vendor/bin/phpunit
 
-      - name: Build image Docker
-  	run: docker build -t cesizen-app .
+           - name: Build image Docker
+        run: docker build -t cesizen-app .
