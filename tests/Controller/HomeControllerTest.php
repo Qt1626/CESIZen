@@ -14,4 +14,22 @@ class HomeControllerTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
     }
+
+    public function testLoginPageIsSuccessful(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/connexion');
+
+        $this->assertResponseIsSuccessful();
+    }
+
+    public function testRegisterPageIsSuccessful(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/inscription');
+
+        $this->assertResponseIsSuccessful();
+    }
 }

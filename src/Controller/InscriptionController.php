@@ -38,10 +38,7 @@ final class InscriptionController extends AbstractController
 
 
 
-        $logger->info('AVANT SAVE');
-        $repository = $entityManager->getRepository(InfoUtilisateur::class);
-        $question = $repository->findOneBy(['id' => '50']);
-        $logger->info($question->getNom());
+       $logger->info('AVANT SAVE');
 /*
         $utilisateur = new Utilisateur();
         $utilisateur->setDateCreation(new DateTimeImmutable('now', new DateTimeZone('Europe/Paris')));
