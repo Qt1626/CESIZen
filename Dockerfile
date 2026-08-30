@@ -24,4 +24,4 @@ COPY . .
 # Aucun secret n'est stocké dans l'image.
 RUN printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env
 
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-10000} -t public"]
+CMD ["sh", "-c", "php bin/console doctrine:schema:update --force --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]
