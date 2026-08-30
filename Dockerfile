@@ -1,6 +1,5 @@
 FROM php:8.2-cli
 
-# Dépendances système nécessaires à Symfony/PostgreSQL
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -8,23 +7,21 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
-# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Installation des dépendances PHP
 COPY composer.json composer.lock symfony.lock ./
+
 RUN composer install \
     --no-interaction \
     --prefer-dist \
     --no-scripts
 
-# Copie du projet
 COPY . .
 
-# Installation finale et scripts Symfony
+# Fichier minimal attendu par Symfony.
+# Aucun secret n'est stocké dans l'image.
+RUN printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env
 
-EXPOSE 8000
-
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-10000} -t public"]
