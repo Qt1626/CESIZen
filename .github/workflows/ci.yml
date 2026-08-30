@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+
   pull_request:
     branches:
       - master
@@ -64,6 +65,9 @@ jobs:
 
       - name: Lancer PHPUnit
         run: vendor/bin/phpunit
+
+      - name: Audit securite Composer
+        run: composer audit
 
       - name: Build image Docker
         run: docker build -t cesizen-app .
