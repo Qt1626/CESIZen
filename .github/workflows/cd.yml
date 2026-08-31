@@ -42,3 +42,6 @@ jobs:
           tags: |
             ghcr.io/qt1626/cesizen:latest
             ghcr.io/qt1626/cesizen:${{ github.event.workflow_run.head_sha }}
+
+      - name: Deployer automatiquement sur Render
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
