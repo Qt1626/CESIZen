@@ -51,8 +51,8 @@ jobs:
       - name: Installer Composer
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Creer le schema de test
-        run: php bin/console doctrine:schema:create --env=test
+      - name: Executer les migrations de test
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
 
       - name: Verifier Doctrine
         run: php bin/console doctrine:schema:validate --env=test
