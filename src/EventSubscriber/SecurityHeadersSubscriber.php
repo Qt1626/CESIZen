@@ -16,20 +16,35 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
 
         $response = $event->getResponse();
 
-        $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        // Empêche le navigateur de deviner le type MIME
+        $response->headers->set(
+            'X-Content-Type-Options',
+            'nosniff'
+        );
+
+        // Protection contre le clickjacking
+        $response->headers->set(
+            'X-Frame-Options',
+            'DENY'
+        );
+
+        // Limite les informations envoyées dans le Referer
+        $response->headers->set(
+            'Referrer-Policy',
+            'strict-origin-when-cross-origin'
+        );
+
+        // Désactive les fonctionnalités inutilisées
         $response->headers->set(
             'Permissions-Policy',
             'camera=(), microphone=(), geolocation=()'
         );
 
-        if ($event->getRequest()->isSecure()) {
-            $response->headers->set(
-                'Strict-Transport-Security',
-                'max-age=31536000; includeSubDomains'
-            );
-        }
+        // Force l'utilisation de HTTPS
+        $response->headers->set(
+            'Strict-Transport-Security',
+            'max-age=31536000; includeSubDomains'
+        );
     }
 
     public static function getSubscribedEvents(): array
