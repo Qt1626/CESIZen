@@ -71,3 +71,19 @@ jobs:
 
       - name: Build image Docker
         run: docker build -t cesizen-app .
+
+      - name: Audit securite Composer
+        run: composer audit
+
+      - name: Build image Docker
+        run: docker build -t cesizen-app .
+
+      - name: Scanner l'image Docker avec Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: 'cesizen-app'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
