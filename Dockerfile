@@ -1,9 +1,11 @@
 FROM php:8.2-cli
 
-RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libpq-dev \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libpq-dev \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
