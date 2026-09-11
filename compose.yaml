@@ -84,6 +84,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
+    image: cesizen:${CESIZEN_IMAGE_TAG:-local}
     container_name: cesizen-preprod
     ports:
       - "8003:10000"
@@ -118,10 +119,7 @@ services:
   # PROD
   # =========================================================
   app-prod:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: prod
+    image: cesizen:${CESIZEN_IMAGE_TAG:-local}
     container_name: cesizen-prod
     ports:
       - "8004:10000"
