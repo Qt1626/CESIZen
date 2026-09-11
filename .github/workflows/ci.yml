@@ -35,9 +35,26 @@ jobs:
       CORS_ALLOW_ORIGIN: '^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
 
     steps:
-      - name: Recuperer le projet
-        uses: actions/checkout@v4
 
+      # =====================================================
+      # RECUPERATION DU PROJET
+      # =====================================================
+      - name: Recuperer le projet
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # =====================================================
+      # SECURITE - DETECTION DES SECRETS
+      # =====================================================
+      - name: Scanner les secrets avec Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # =====================================================
+      # ENVIRONNEMENT PHP
+      # =====================================================
       - name: Preparer environnement de test
         run: cp .env.test .env
 
@@ -48,36 +65,51 @@ jobs:
           extensions: pdo_pgsql
           coverage: none
 
+      # =====================================================
+      # DEPENDANCES
+      # =====================================================
       - name: Installer Composer
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      # =====================================================
+      # BASE DE DONNEES
+      # =====================================================
       - name: Executer les migrations de test
         run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
 
       - name: Verifier Doctrine
         run: php bin/console doctrine:schema:validate --env=test
 
+      # =====================================================
+      # QUALITE DU CODE
+      # =====================================================
       - name: Verifier YAML
         run: php bin/console lint:yaml config
 
       - name: Verifier Twig
         run: php bin/console lint:twig templates
 
+      # =====================================================
+      # TESTS
+      # =====================================================
       - name: Lancer PHPUnit
         run: vendor/bin/phpunit
 
+      # =====================================================
+      # AUDIT DES DEPENDANCES
+      # =====================================================
       - name: Audit securite Composer
         run: composer audit
 
+      # =====================================================
+      # DOCKER
+      # =====================================================
       - name: Build image Docker
-        run: docker build -t cesizen-app .
+        run: docker build --target prod -t cesizen-app .
 
-      - name: Audit securite Composer
-        run: composer audit
-
-      - name: Build image Docker
-        run: docker build -t cesizen-app .
-
+      # =====================================================
+      # SCAN DE L'IMAGE
+      # =====================================================
       - name: Scanner l'image Docker avec Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
