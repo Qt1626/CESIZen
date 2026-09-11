@@ -1,6 +1,5 @@
-FROM php:8.2-cli
+FROM php:8.2-cli AS base
 
-# Installation des dépendances système et de PostgreSQL
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -10,31 +9,76 @@ RUN apt-get update \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
-# Masque la version de PHP dans les réponses HTTP
+# Masque la version PHP
 RUN echo "expose_php = Off" > /usr/local/etc/php/conf.d/security.ini
 
-# Installation de Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Copie des fichiers Composer
 COPY composer.json composer.lock symfony.lock ./
 
-# Installation des dépendances PHP
+
+# =========================================================
+# DEV
+# =========================================================
+FROM base AS dev
+
+# DEV contient les dépendances de développement
 RUN composer install \
     --no-interaction \
     --prefer-dist \
     --no-scripts
 
-# Copie du projet
 COPY . .
 
-# Fichier .env minimal pour Symfony.
-# Les vraies valeurs sensibles viennent de Render.
-RUN printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env
+RUN printf "APP_ENV=dev\nAPP_DEBUG=1\n" > /app/.env
 
 EXPOSE 10000
 
-# Initialisation du schéma puis démarrage de Symfony
+CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
+
+
+# =========================================================
+# QA
+# =========================================================
+FROM base AS qa
+
+# QA contient PHPUnit et les outils de test
+RUN composer install \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts
+
+COPY . .
+
+RUN printf "APP_ENV=test\nAPP_DEBUG=0\n" > /app/.env
+
+EXPOSE 10000
+
+CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
+
+
+# =========================================================
+# PREPROD / PROD
+# =========================================================
+FROM base AS prod
+
+# Pas de dépendances de développement
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts \
+    --optimize-autoloader
+
+COPY . .
+
+# Les tests ne sont pas nécessaires dans l'image de production
+RUN rm -rf /app/tests \
+    && printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env
+
+EXPOSE 10000
+
+# On conserve le comportement actuellement utilisé par Render
 CMD ["sh", "-c", "php bin/console doctrine:schema:update --force --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]
