@@ -12,11 +12,15 @@ on:
 permissions:
   contents: read
   packages: write
+  issues: write
 
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
+    env:
+      QA_URL: ${{ vars.QA_URL }}
 
     steps:
       - name: Recuperer le projet
@@ -45,3 +49,41 @@ jobs:
 
       - name: Deployer automatiquement sur Render
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      # -----------------------------------------------------
+      # Attente que l'environnement QA reponde avant de le scanner.
+      # Le redeploiement Render n'est pas instantane : on interroge
+      # l'URL toutes les 10s pendant 5 minutes maximum.
+      # -----------------------------------------------------
+      - name: Attendre la disponibilite de l'environnement QA
+        if: ${{ env.QA_URL != '' }}
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "$QA_URL"; then
+              echo "QA disponible."
+              exit 0
+            fi
+            echo "QA pas encore disponible, nouvelle tentative dans 10s ($i/30)..."
+            sleep 10
+          done
+          echo "QA indisponible apres 5 minutes, scan ZAP ignore."
+
+      # -----------------------------------------------------
+      # Scan dynamique (DAST) de l'environnement QA fraichement
+      # redeploye. Necessite la variable de depot QA_URL (Settings
+      # > Secrets and variables > Actions > Variables) pointant vers
+      # l'URL publique Render de l'environnement QA.
+      # -----------------------------------------------------
+      - name: Scanner l'environnement QA avec OWASP ZAP
+        if: ${{ env.QA_URL != '' }}
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: ${{ env.QA_URL }}
+          fail_action: false
+          issue_title: "Scan securite OWASP ZAP - QA"
+
+      # -----------------------------------------------------
+      # Si le scan ZAP ou le deploiement echouent, un ticket est
+      # ouvert automatiquement par le workflow auto-ticket.yml
+      # (declenche sur l'echec de ce workflow, voir docs/ticketing.md).
+      # -----------------------------------------------------
