@@ -63,3 +63,8 @@ La commande :
 
 ```bash
 composer audit
+```
+
+exécutée le 12/09/2026 sur le projet a par exemple signalé des avis de sécurité sur plusieurs paquets `symfony/*` alors en version 7.2.x, avec un niveau de sévérité modéré (absence de faille critique). Les dépendances concernées ont été mises à jour via `composer update`, puis la CI (lint, tests, `doctrine:schema:validate`, build Docker, scan Trivy) a validé que la mise à jour n'introduisait pas de régression avant fusion sur `master`.
+
+Cette même commande est désormais exécutée automatiquement à chaque exécution de la CI (`.github/workflows/ci.yml`, étape « Audit securite Composer »), ce qui transforme cet exemple ponctuel en contrôle continu : toute nouvelle vulnérabilité publiée sur une dépendance existante est détectée dès le prochain push, sans attendre la veille hebdomadaire manuelle.

@@ -1,0 +1,120 @@
+name: Supervision de disponibilite
+
+# Sonde l'URL publique de l'environnement toutes les 15 minutes. Un ticket
+# P1 "service indisponible" n'est ouvert qu'apres deux echecs consecutifs
+# (comparaison avec la conclusion du run precedent de ce meme workflow),
+# afin d'eviter les faux positifs lies a un simple redemarrage Render.
+#
+# Necessite la variable de depot MONITORED_URL (Settings > Secrets and
+# variables > Actions > Variables), pointant vers l'URL a surveiller
+# (QA, preproduction ou production selon l'environnement a superviser).
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  actions: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      MONITORED_URL: ${{ vars.MONITORED_URL }}
+    steps:
+      - name: Verifier que MONITORED_URL est configuree
+        if: ${{ env.MONITORED_URL == '' }}
+        run: |
+          echo "::warning::La variable de depot MONITORED_URL n'est pas definie, la supervision est ignoree."
+
+      - name: Tester la disponibilite
+        if: ${{ env.MONITORED_URL != '' }}
+        id: probe
+        run: |
+          if curl -fsS -m 10 -o /dev/null "$MONITORED_URL"; then
+            echo "up=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ouvrir un ticket P1 apres deux echecs consecutifs
+        if: ${{ env.MONITORED_URL != '' && steps.probe.outputs.up == 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "uptime-check.yml",
+              status: "completed",
+              per_page: 2,
+            });
+
+            // runs[0] est ce run-ci (encore "in_progress" cote API au moment du script) ;
+            // runs[1] est le run complet precedent.
+            const previous = runs.workflow_runs.find(r => r.id !== context.runId);
+            const previousFailed = previous && previous.conclusion === "failure";
+
+            if (!previousFailed) {
+              console.log("Premier echec detecte, pas encore de ticket (on attend confirmation).");
+              return;
+            }
+
+            const markerLabel = "auto:uptime";
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: markerLabel,
+            });
+            if (existing.data.length > 0) {
+              console.log(`Ticket d'indisponibilite deja ouvert (#${existing.data[0].number}).`);
+              return;
+            }
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "[Auto] Service indisponible",
+              labels: ["bug", "disponibilite", "P1", markerLabel],
+              body: [
+                "Deux verifications consecutives de disponibilite ont echoue.",
+                "",
+                `- URL surveillee : ${process.env.MONITORED_URL}`,
+                `- Priorite : P1 (voir docs/sla.md)`,
+                "",
+                "Suivre la procedure de gestion d'incident (docs/incident-response.md). Ce ticket sera a fermer une fois le service confirme a nouveau disponible.",
+              ].join("\n"),
+              // Ensures MONITORED_URL is readable inside the script above.
+            });
+            console.log(`Ticket #${issue.data.number} cree.`);
+        env:
+          MONITORED_URL: ${{ env.MONITORED_URL }}
+
+      - name: Fermer le ticket si le service est de nouveau disponible
+        if: ${{ env.MONITORED_URL != '' && steps.probe.outputs.up == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "auto:uptime",
+            });
+            for (const issue of existing.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: "Le service repond de nouveau normalement.",
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: "closed",
+              });
+            }

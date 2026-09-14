@@ -3,11 +3,41 @@
 namespace App\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 class SecurityHeadersSubscriber implements EventSubscriberInterface
 {
+    public function __construct(
+        private readonly string $environment,
+    ) {
+    }
+
+    /**
+     * Force HTTPS en production : redirige toute requête HTTP vers son
+     * équivalent HTTPS avant même qu'elle n'atteigne l'application. Le header
+     * Strict-Transport-Security (ci-dessous) protège les visites suivantes,
+     * mais pas la toute première requête d'un navigateur — d'où cette
+     * redirection explicite. Voir docs/security-plan.md.
+     */
+    public function onKernelRequest(RequestEvent $event): void
+    {
+        if (!$event->isMainRequest() || 'prod' !== $this->environment) {
+            return;
+        }
+
+        $request = $event->getRequest();
+
+        if ($request->isSecure()) {
+            return;
+        }
+
+        $httpsUrl = 'https://' . $request->getHttpHost() . $request->getRequestUri();
+        $event->setResponse(new RedirectResponse($httpsUrl, RedirectResponse::HTTP_MOVED_PERMANENTLY));
+    }
+
     public function onKernelResponse(ResponseEvent $event): void
     {
         if (!$event->isMainRequest()) {
@@ -50,6 +80,7 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
+            KernelEvents::REQUEST => 'onKernelRequest',
             KernelEvents::RESPONSE => 'onKernelResponse',
         ];
     }

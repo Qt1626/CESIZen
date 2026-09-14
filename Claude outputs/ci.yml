@@ -1,0 +1,154 @@
+name: CI CESIZen
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: app_test
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_CI }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_SECRET: ${{ secrets.APP_SECRET_CI }}
+      DATABASE_URL: "postgresql://app:${{ secrets.DB_PASSWORD_CI }}@127.0.0.1:5432/app?serverVersion=16&charset=utf8"
+      CORS_ALLOW_ORIGIN: '^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+
+      # =====================================================
+      # RECUPERATION DU PROJET
+      # =====================================================
+      - name: Recuperer le projet
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # =====================================================
+      # SECURITE - DETECTION DES SECRETS
+      # =====================================================
+      - name: Scanner les secrets avec Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # =====================================================
+      # ENVIRONNEMENT PHP
+      # =====================================================
+      - name: Preparer environnement de test
+        run: cp .env.test .env
+
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo_pgsql
+          coverage: none
+
+      # =====================================================
+      # DEPENDANCES
+      # =====================================================
+      - name: Installer Composer
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      # =====================================================
+      # BASE DE DONNEES
+      # =====================================================
+      - name: Executer les migrations de test
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
+      # -----------------------------------------------------
+      # Test de non-regression : ajout de colonne puis retour
+      # arriere (rollback), cf. docs/rollback-test.md.
+      # La derniere migration (Version20260912180000, ajout de
+      # utilisateur.derniere_connexion) est annulee (down()) puis
+      # reappliquee (up()). Aucun doctrine:schema:validate n'est
+      # execute entre les deux : tant que la migration est annulee,
+      # le schema decale volontairement de l'entite (qui, elle,
+      # reste toujours au niveau du code courant) - ce n'est pas une
+      # anomalie, juste un etat intermediaire du test. C'est la
+      # validation finale, une fois "latest" reapplique, qui doit
+      # etre au vert (voir etape "Verifier Doctrine" ci-dessous).
+      # -----------------------------------------------------
+      - name: "Tester le retour arriere d'une migration (rollback)"
+        run: |
+          php bin/console doctrine:migrations:migrate prev --no-interaction --env=test
+          php bin/console doctrine:migrations:migrate latest --no-interaction --env=test
+
+      - name: Verifier Doctrine
+        run: php bin/console doctrine:schema:validate --env=test
+
+      # =====================================================
+      # QUALITE DU CODE
+      # =====================================================
+      - name: Verifier YAML
+        run: php bin/console lint:yaml config
+
+      - name: Verifier Twig
+        run: php bin/console lint:twig templates
+
+      # =====================================================
+      # TESTS
+      # =====================================================
+      - name: Lancer PHPUnit
+        run: vendor/bin/phpunit
+
+      # =====================================================
+      # AUDIT DES DEPENDANCES
+      # =====================================================
+      - name: Audit securite Composer
+        run: composer audit
+
+      # =====================================================
+      # ANALYSE STATIQUE ET QUALITE DE CODE (SAST)
+      # =====================================================
+      # Necessite le secret SONAR_TOKEN (SonarCloud) ainsi que le
+      # fichier sonar-project.properties a la racine du depot.
+      # Tant que le secret n'est pas configure, cette etape est
+      # ignoree sans faire echouer le pipeline.
+      - name: Analyse SonarCloud
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # =====================================================
+      # DOCKER
+      # =====================================================
+      - name: Build image Docker
+        run: docker build --target prod -t cesizen-app .
+
+      # =====================================================
+      # SCAN DE L'IMAGE
+      # =====================================================
+      - name: Scanner l'image Docker avec Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: 'cesizen-app'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'

@@ -1,0 +1,75 @@
+name: Ouverture automatique de tickets
+
+# Ouvre automatiquement une issue GitHub lorsque la CI, la CD ou la
+# reconstruction nocturne de l'environnement dev echouent, afin de
+# raccourcir le delai entre la detection d'un probleme et sa prise en
+# charge (voir docs/ticketing.md, section "Ouverture automatique de
+# tickets"). Un seul ticket ouvert est maintenu par workflow en echec :
+# si un ticket "auto:<workflow>" est deja ouvert, aucun doublon n'est cree.
+
+on:
+  workflow_run:
+    workflows:
+      - "CI CESIZen"
+      - "CD CESIZen"
+      - "Reconstruction nocturne environnement dev"
+    types:
+      - completed
+
+permissions:
+  issues: write
+
+jobs:
+  ouvrir-ticket:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Creer ou reutiliser le ticket d'echec
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+
+            const config = {
+              "CI CESIZen": { label: "ci-echec", priority: "P2", titre: "Echec de la CI" },
+              "CD CESIZen": { label: "deploiement", priority: "P1", titre: "Echec du deploiement (CD)" },
+              "Reconstruction nocturne environnement dev": { label: "dev", priority: "P3", titre: "Echec de la reconstruction nocturne de l'environnement dev" },
+            };
+            const c = config[run.name] || { label: "ci-echec", priority: "P2", titre: `Echec du workflow ${run.name}` };
+            const markerLabel = `auto:${run.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: markerLabel,
+            });
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body: `Nouvel echec de **${run.name}** sur le run [#${run.run_number}](${run.html_url}) (commit ${run.head_sha.substring(0, 7)}).`,
+              });
+              console.log(`Ticket existant #${existing.data[0].number} mis a jour.`);
+              return;
+            }
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Auto] ${c.titre} (${run.head_branch}, ${run.head_sha.substring(0, 7)})`,
+              labels: ["bug", c.label, c.priority, markerLabel],
+              body: [
+                `Le workflow **${run.name}** a echoue automatiquement.`,
+                "",
+                `- Run : ${run.html_url}`,
+                `- Branche : ${run.head_branch}`,
+                `- Commit : ${run.head_sha}`,
+                `- Priorite : ${c.priority} (voir docs/sla.md)`,
+                "",
+                "Ce ticket a ete cree automatiquement par auto-ticket.yml. Il sera a fermer une fois la cause identifiee et corrigee (voir docs/incident-response.md).",
+              ].join("\n"),
+            });
+            console.log(`Ticket #${issue.data.number} cree.`);

@@ -1,0 +1,89 @@
+name: Reconstruction nocturne environnement dev
+
+# Rejoue chaque nuit, a partir d'un etat vierge, la construction complete
+# de l'image "dev" (cible dev du Dockerfile) : installation des dependances,
+# application du schema et chargement des fixtures. Objectif : garantir que
+# tout developpeur qui lance `docker compose up --build app-dev db-dev` le
+# lendemain matin reparte toujours d'un environnement propre et fonctionnel,
+# sans attendre qu'un developpeur le decouvre casse en local.
+#
+# En cas d'echec, un ticket est ouvert automatiquement par auto-ticket.yml.
+
+on:
+  schedule:
+    # 01h00 UTC ~ 03h00 heure de Paris (heure d'ete) / 02h00 (heure d'hiver)
+    - cron: '0 1 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  rebuild-dev:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cesizen_dev
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_CI }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d cesizen_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------
+      # Teste periodiquement que la sauvegarde versionnee dans le depot
+      # (backups/cesizen_backup.sql) se restaure sans erreur, conformement a
+      # docs/security-plan.md (risque "sauvegardes non testees").
+      # -----------------------------------------------------
+      - name: Tester la restauration de la sauvegarde
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends postgresql-client
+          export PGPASSWORD="${{ secrets.DB_PASSWORD_CI }}"
+          # Base dediee au test de restauration, distincte de cesizen_dev
+          # (qui sera reconstruite via les migrations juste apres).
+          psql -h 127.0.0.1 -U app -d cesizen_dev -c "DROP DATABASE IF EXISTS cesizen_restore_test;"
+          psql -h 127.0.0.1 -U app -d cesizen_dev -c "CREATE DATABASE cesizen_restore_test;"
+          psql -h 127.0.0.1 -U app -d cesizen_restore_test -v ON_ERROR_STOP=1 -f backups/cesizen_backup.sql
+          psql -h 127.0.0.1 -U app -d cesizen_dev -c "DROP DATABASE cesizen_restore_test;"
+
+      - name: Construire l'image dev "from scratch" (sans cache)
+        run: docker build --no-cache --target dev -t cesizen-dev .
+
+      - name: Demarrer le conteneur dev
+        run: |
+          docker run -d --name cesizen-dev \
+            --network host \
+            -e APP_ENV=dev \
+            -e APP_SECRET=${{ secrets.APP_SECRET_CI }} \
+            -e DATABASE_URL="postgresql://app:${{ secrets.DB_PASSWORD_CI }}@127.0.0.1:5432/cesizen_dev?serverVersion=16&charset=utf8" \
+            cesizen-dev
+
+      - name: Appliquer le schema et charger les fixtures
+        run: |
+          docker exec cesizen-dev php bin/console doctrine:migrations:migrate --no-interaction
+          docker exec cesizen-dev php bin/console doctrine:fixtures:load --no-interaction
+
+      - name: Verifier que l'application repond
+        run: |
+          for i in $(seq 1 15); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:10000/"; then
+              echo "Environnement dev operationnel."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "L'environnement dev ne repond pas apres reconstruction." >&2
+          docker logs cesizen-dev
+          exit 1
+
+      - name: Nettoyage
+        if: always()
+        run: docker rm -f cesizen-dev || true

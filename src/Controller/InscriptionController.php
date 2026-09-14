@@ -14,7 +14,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -25,7 +27,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class InscriptionController extends AbstractController
 {
     #[Route('/inscription', name: 'infoUtilisateur_add')]
-    public function addInfoUtilisateur(Request $request, EntityManagerInterface $entityManager, LoggerInterface $logger , UserPasswordHasherInterface $passwordHasher)
+    public function addInfoUtilisateur(Request $request, EntityManagerInterface $entityManager, LoggerInterface $logger , UserPasswordHasherInterface $passwordHasher, RateLimiterFactory $inscriptionLimiter)
     {
 
 
@@ -53,6 +55,17 @@ final class InscriptionController extends AbstractController
         $logger->info('APRES SAVE');
 
         $form->handleRequest($request);
+
+        if ($form->isSubmitted()) {
+            // Limite le nombre de tentatives d'inscription par IP (anti-spam /
+            // anti-enumeration), voir config/packages/rate_limiter.yaml et
+            // docs/security-plan.md.
+            $limiter = $inscriptionLimiter->create($request->getClientIp());
+            if (false === $limiter->consume(1)->isAccepted()) {
+                throw new TooManyRequestsHttpException(null, 'Trop de tentatives d\'inscription. Merci de réessayer dans quelques minutes.');
+            }
+        }
+
         if ($form->isSubmitted() && $form->isValid()) {
 
             $consentement = $form->get('consentement')->getData();

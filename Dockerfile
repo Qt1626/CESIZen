@@ -12,6 +12,10 @@ RUN apt-get update \
 # Masque la version PHP
 RUN echo "expose_php = Off" > /usr/local/etc/php/conf.d/security.ini
 
+# Utilisateur non privilegie : l'application ne doit jamais tourner en root
+# (voir docs/security-plan.md, risque "conteneur applicatif execute en root").
+RUN useradd --create-home --uid 1000 --shell /bin/bash appuser
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
@@ -32,7 +36,10 @@ RUN composer install \
 
 COPY . .
 
-RUN printf "APP_ENV=dev\nAPP_DEBUG=1\n" > /app/.env
+RUN printf "APP_ENV=dev\nAPP_DEBUG=1\n" > /app/.env \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 10000
 
@@ -52,11 +59,16 @@ RUN composer install \
 
 COPY . .
 
-RUN printf "APP_ENV=test\nAPP_DEBUG=0\n" > /app/.env
+RUN printf "APP_ENV=test\nAPP_DEBUG=0\n" > /app/.env \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 10000
 
-CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
+# Seules les migrations versionnees sont appliquees (jamais de reset de schema),
+# y compris en QA : voir docs/rollback-test.md et docs/security-plan.md.
+CMD ["sh", "-c", "php bin/console doctrine:migrations:migrate --no-interaction --env=test && php -S 0.0.0.0:10000 -t public"]
 
 
 # =========================================================
@@ -76,9 +88,16 @@ COPY . .
 
 # Les tests ne sont pas nécessaires dans l'image de production
 RUN rm -rf /app/tests \
-    && printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env
+    && printf "APP_ENV=prod\nAPP_DEBUG=0\n" > /app/.env \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 10000
 
-# On conserve le comportement actuellement utilisé par Render
-CMD ["sh", "-c", "php bin/console doctrine:schema:update --force --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]
+# doctrine:migrations:migrate remplace l'ancien doctrine:schema:update --force :
+# seules les migrations explicitement versionnees et testees (voir
+# docs/rollback-test.md) sont appliquees, ce qui garantit qu'aucune donnee de
+# preproduction/production n'est jamais reinitialisee ni modifiee de maniere
+# non maitrisee.
+CMD ["sh", "-c", "php bin/console doctrine:migrations:migrate --no-interaction --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]

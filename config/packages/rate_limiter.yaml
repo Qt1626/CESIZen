@@ -1,0 +1,11 @@
+# Limite le nombre d'inscriptions par adresse IP pour empêcher un abus du
+# formulaire /inscription (spam de comptes, énumération d'e-mails).
+# Le login dispose déjà de sa propre protection (security.yaml,
+# login_throttling : 5 tentatives / minute).
+# Voir docs/security-plan.md, risque "absence de limitation de débit".
+framework:
+    rate_limiter:
+        inscription:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'

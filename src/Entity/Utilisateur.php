@@ -25,6 +25,9 @@ class Utilisateur
     #[ORM\Column(nullable: true)]
     private ?bool $estAdmin = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $derniereConnexion = null;
+
     #[ORM\OneToOne(inversedBy: 'utilisateur', cascade: ['persist', 'remove'])]
     private InfoUtilisateur|null $infoUtilisateur = null;
 
@@ -83,6 +86,18 @@ class Utilisateur
     public function setEstAdmin(?bool $estAdmin): static
     {
         $this->estAdmin = $estAdmin;
+
+        return $this;
+    }
+
+    public function getDerniereConnexion(): ?\DateTimeImmutable
+    {
+        return $this->derniereConnexion;
+    }
+
+    public function setDerniereConnexion(?\DateTimeImmutable $derniereConnexion): static
+    {
+        $this->derniereConnexion = $derniereConnexion;
 
         return $this;
     }
