@@ -100,4 +100,10 @@ EXPOSE 10000
 # docs/rollback-test.md) sont appliquees, ce qui garantit qu'aucune donnee de
 # preproduction/production n'est jamais reinitialisee ni modifiee de maniere
 # non maitrisee.
-CMD ["sh", "-c", "php bin/console doctrine:migrations:migrate --no-interaction --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]
+#
+# ETAPE TEMPORAIRE (a retirer apres le premier deploiement reussi) : la base
+# de production existait deja (creee via schema:update) avant le passage aux
+# migrations. On indique donc a Doctrine que la migration de baseline
+# Version20260901083316 est deja appliquee (aucun SQL rejoue, juste un
+# enregistrement), avant de laisser migrate appliquer la suite normalement.
+CMD ["sh", "-c", "php bin/console doctrine:migrations:version --add --no-interaction 'DoctrineMigrations\\Version20260901083316' || true; php bin/console doctrine:migrations:migrate --no-interaction --env=prod && php -S 0.0.0.0:${PORT:-10000} -t public"]
