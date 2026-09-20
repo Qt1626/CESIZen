@@ -1,0 +1,17 @@
+# Configuration Gitleaks pour CESIZen.
+# Etend le jeu de regles par defaut et ajoute une exception pour un faux
+# positif connu : sonar-project.properties.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Faux positifs connus (pas de vrais secrets)"
+
+# sonar.projectKey=Qt1626_CESIZen dans sonar-project.properties n'est pas un
+# secret : c'est l'identifiant public du projet sur SonarCloud (visible dans
+# l'URL du dashboard). La regle generique "generic-api-key" le detecte a
+# tort a cause du motif "Key=" suivi d'une valeur alphanumerique.
+paths = [
+  '''sonar-project\.properties''',
+]
